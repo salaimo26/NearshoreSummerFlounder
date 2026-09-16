@@ -15,4 +15,4 @@ e Haskin Shellfish Research Laboratory, Rutgers University 6959 Miller Avenue, P
 
 *Corresponding Author: alaimo@marine.rutgers.edu
 
-New Jersey Ocean Stock Assessment Program data can be requested at: [https://dep.nj.gov/njfw/fishing/marine/ocean-stock-assessment-program/]((https://dep.nj.gov/njfw/fishing/marine/ocean-stock-assessment-program/)).  
+New Jersey Ocean Stock Assessment Program data can be requested at: https://dep.nj.gov/njfw/fishing/marine/ocean-stock-assessment-program/  
