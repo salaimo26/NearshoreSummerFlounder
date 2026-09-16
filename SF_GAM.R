@@ -21,19 +21,13 @@ df <- df %>%
 
 # sub-setting the data to remove some outliers 
 trawls <- subset(df,SALBOT>30)
-trawls <- subset(trawls, dtdz>0)
 trawls <- subset(trawls, TEMPBOT>1)
 trawls <- subset(trawls, x_dist>0)
 trawls <- subset(trawls, y_dist>0)
-trawls <- subset(trawls, drho<0.5)
-trawls <- subset(trawls, drho>=0)
 trawls <- subset(trawls, delta_rho>=0)
 
 #creating the categorical variables 
 trawls$cruise <- as.factor(trawls$cruise)
-trawls$location <- as.factor(trawls$location)
-trawls$n_s <- as.factor(trawls$n_s)
-trawls$decade <- as.factor(trawls$decade)
 
 ######################## Splitting the data into testing and training sets ######################## 
 # Put 70% of the data into the training set 
@@ -69,23 +63,76 @@ m1.1 <- gam(para_cpue ~
             data=df_train,
             family=tw(link = 'log'))
 
+par(mfrow=c(2,2))
 gam.check(m1.1)
+par(mfrow=c(1,1))
+
 concurvity(m1.1)
 summary(m1.1)
 getViz(m1.1)%>%plot(allTerms=T)%>%print(pages=1,shade=TRUE)
 AIC(m1.1)
 
-######################## GAM Index ######################## 
-models_predict <- predict(m1.1, newdata=df_test, type="response")
-
-plot(models_predict,df_test$para_cpue)
-
-df_test
-
-####---- Relative Contribution of Each Term ----####
+######################## Relative Contribution of Each Term ######################## 
 gam.hp(m1.1)
 
-####---- Cross Validation--Monte Carlo Method----####
+######################## GAM Predicted vs. Observed ######################## 
+models_predict <- predict(m1.1,newdata = df_test,type = "response")
+
+my_data <- data.frame(
+  observed = df_test$para_cpue,
+  predicted = models_predict
+)
+
+ggplot(my_data, aes(x = observed, y = predicted)) +
+  geom_point(alpha = 0.6) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    linetype = "dashed"
+  ) +
+  labs(
+    x = "Observed CPUE",
+    y = "Predicted CPUE"
+  ) +
+  theme_classic()
+
+######################## GAM Index ######################## 
+cruise_means <- trawls %>%
+  group_by(cruise) %>%
+  summarise(
+    week = mean(week, na.rm = TRUE),
+    TEMPBOT = mean(TEMPBOT, na.rm = TRUE),
+    SALBOT = mean(SALBOT, na.rm = TRUE),
+    delta_rho = mean(delta_rho, na.rm = TRUE),
+    x_dist = mean(x_dist, na.rm = TRUE),
+    y_dist = mean(y_dist, na.rm = TRUE)
+  )
+
+df_test2 <- expand.grid(
+  cruise = unique(trawls$cruise),
+  year = 1990:2019
+) %>%
+  left_join(cruise_means, by = "cruise") %>%
+  arrange(year, cruise)
+view(df_test2)
+
+models_predict <- predict(m1.1,newdata = df_test2,type = "response")
+view(models_predict)
+
+df_test2$predicted <- models_predict
+
+ggplot(df_test2, aes(x = year, y = predicted, group = cruise)) +
+  geom_line(aes(linetype = cruise)) +
+  geom_point(aes(shape = cruise)) +
+  labs(
+    x = "Year",
+    y = "Predicted CPUE",
+    linetype = "Cruise",
+    shape = "Cruise"
+  ) +
+  theme_classic()
+
+######################## Cross Validation--Monte Carlo Method ######################## 
 cross_val <- mc_cv(trawls,prop = 0.7,times=100)
 
 AIC_values_mc <- numeric(length(cross_val$id))
@@ -120,7 +167,7 @@ for (i in seq_along(cross_val$id)) {
   print(i)
 }
 
-mean(RMSE_values_mc)
+median(RMSE_values_mc)
 
 jpeg(filename = "crossval_AIC.jpeg",width = 1600, height = 1600,res = 300)
 ##AIC 
@@ -154,5 +201,135 @@ boxplot(
 abline(h = 0.5, col = "red", lty = 2)
 dev.off()
 
+######################## Plotting Partial Effects ######################## 
+m2Viz <- getViz(m1.1)
+
+## April Cross Dist
+jpeg(filename = "april_cross_dist.jpeg",width = 2400, height = 1600,res = 650)
+p = plot(m2Viz, select = 2) + l_ciPoly() + l_fitLine() + l_rug()
+p = p  + labs(x="Cross Shore Distance (km)",y="s(x)",title = "April Cross Shore Distance")+scale_y_continuous(labels = label_number(accuracy = 0.1)) + theme(
+  title = element_text(size=12,face="bold"),
+  axis.title.x = element_text(size=13),  # Adjust size of x-axis title
+  axis.title.y = element_text(size = 13),  # Adjust size of y-axis title
+  axis.text.x = element_text(size = 12),   # Adjust size of x-axis text
+  axis.text.y = element_text(size = 12),# Adjust size of y-axis text
+  plot.margin = margin(l=15,t=10,r=15))
+
+print(p)
+dev.off()
+
+## August Cross 
+jpeg(filename = "aug_cross_dist.jpeg",width = 2400, height = 1600,res = 650)
+p = plot(m2Viz, select = 4) + l_ciPoly() + l_fitLine() + l_rug()
+p = p  + labs(x="Cross Shore Distance (km)",y="s(x)",title = "August Cross Shore Distance")+scale_y_continuous(labels = label_number(accuracy = 0.1))+ theme(
+  title = element_text(size=12,face="bold"),
+  axis.title.x = element_text(size=13),  # Adjust size of x-axis title
+  axis.title.y = element_text(size = 13),  # Adjust size of y-axis title
+  axis.text.x = element_text(size = 12),   # Adjust size of x-axis text
+  axis.text.y = element_text(size = 12),# Adjust size of y-axis text
+  plot.margin = margin(l=15,t=10,r=15))
+
+print(p)
+dev.off()
+
+## April Along 
+jpeg(filename = "april_along_dist.jpeg",width = 2400, height = 1600,res = 650)
+p = plot(m2Viz, select = 7) + l_ciPoly() + l_fitLine() + l_rug()
+p = p  + labs(x="Along Shore Distance (km)",y="s(x)",title = "April Along Shore Distance") + theme(
+  title = element_text(size=12,face="bold"),
+  axis.title.x = element_text(size=13),  # Adjust size of x-axis title
+  axis.title.y = element_text(size = 13),  # Adjust size of y-axis title
+  axis.text.x = element_text(size = 12),   # Adjust size of x-axis text
+  axis.text.y = element_text(size = 12),# Adjust size of y-axis text
+  plot.margin = margin(l=15,t=10,r=15))
+
+print(p)
+dev.off()
+
+## August Along 
+jpeg(filename = "aug_along_dist.jpeg",width = 2400, height = 1600,res = 650)
+p = plot(m2Viz, select = 9) + l_ciPoly() + l_fitLine() + l_rug()
+p = p  + labs(x="Along Shore Distance (km)",y="s(x)",title = "August Along Shore Distance") + theme(
+  title = element_text(size=12,face="bold"),
+  axis.title.x = element_text(size=13),  # Adjust size of x-axis title
+  axis.title.y = element_text(size = 13),  # Adjust size of y-axis title
+  axis.text.x = element_text(size = 12),   # Adjust size of x-axis text
+  axis.text.y = element_text(size = 12),# Adjust size of y-axis text
+  plot.margin = margin(l=15,t=10,r=15))
+
+print(p)
+dev.off()
+
+## Bottom Temp 
+jpeg(filename = "bot_temp.jpeg",width = 2400, height = 1600,res = 650)
+p = plot(m2Viz, select = 11) + l_ciPoly() + l_fitLine() + l_rug()
+p = p  + labs(x="Bottom Temperature (°C)",y="s(x)")+ theme(
+  axis.title.x = element_text(size=13, face="bold"),  # Adjust size of x-axis title
+  axis.title.y = element_text(size = 13,face="bold"),  # Adjust size of y-axis title
+  axis.text.x = element_text(size = 12),   # Adjust size of x-axis text
+  axis.text.y = element_text(size = 12),# Adjust size of y-axis text
+  plot.margin = margin(l=15,t=10,r=15))
+
+print(p)
+dev.off()
+
+## Bottom Salinity ~"(\u2030)"
+jpeg(filename = "bot_sal.jpeg",width = 2400, height = 1600,res = 650)
+p = plot(m2Viz, select = 12) + l_ciPoly() + l_fitLine() + l_rug()
+p = p  + labs(x="Bottom Salinity (\u2030)",y="s(x)") + theme(
+  axis.title.x = element_text(size=13, face="bold"),  # Adjust size of x-axis title
+  axis.title.y = element_text(size = 13,face="bold"),  # Adjust size of y-axis title
+  axis.text.x = element_text(size = 12),   # Adjust size of x-axis text
+  axis.text.y = element_text(size = 12),# Adjust size of y-axis text
+  plot.margin = margin(l=15,t=10,r=15))
+
+print(p)
+dev.off()
 
 
+library(ggtext)
+
+## delta rho  coord_cartesian(ylim = c(-5, 2)
+jpeg(filename = "delta_rho.jpeg",width = 2400, height = 1600,res = 650)
+p = plot(m2Viz, select = 13) + l_ciPoly() + l_fitLine() + l_rug()
+p = p  + labs( x = "Δρ (kg*m^-3)",
+               y = "s(x)") + theme(
+                 axis.title.x = element_text(size=13, face="bold"),  # Adjust size of x-axis title
+                 axis.title.y = element_text(size = 13,face="bold"),  # Adjust size of y-axis title
+                 axis.text.x = element_text(size = 12),   # Adjust size of x-axis text
+                 axis.text.y = element_text(size = 12),# Adjust size of y-axis text
+                 plot.margin = margin(l=15,t=10,r=15))
+
+print(p)
+dev.off()
+
+## year/week
+jpeg(filename = "year_week.jpeg",width = 2400, height = 1600,res = 650)
+p <- plot(m2Viz, select = 14)
+
+# Customize the x-axis ticks and labels
+month_weeks <- c(4, 16, 25, 34, 43)
+month_labels <- c("January", "April",  "June",
+                  "August","October")
+
+# Customize the x-axis to show months instead of week numbers
+p <- p + scale_x_continuous(
+  breaks = month_weeks,
+  labels = month_labels
+)
+# Customize the y-axis ticks and labels
+p <- p + scale_y_continuous(
+  breaks = seq(1990, 2019, 1), # Tick marks for every year
+  labels = ifelse(seq(1990, 2019, 1) %% 2 == 0, seq(1990, 2019, 1), "") # Labels for every other year
+) + theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+p = p  + labs(x= NULL,y="Year",title = NULL) + theme(
+  title = element_text(size=13,face="bold"),
+  axis.title.x = element_text(size=13),  # Adjust size of x-axis title
+  axis.title.y = element_text(size = 13),  # Adjust size of y-axis title
+  axis.text.x = element_text(size = 8),   # Adjust size of x-axis text
+  axis.text.y = element_text(size = 8),# Adjust size of y-axis text
+  plot.margin = margin(l=15,t=10,r=15))
+
+print(p)
+dev.off()
