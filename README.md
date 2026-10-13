@@ -1,4 +1,4 @@
-# Dynamic oceanographic influences on summer flounder (_Paralicthys dentatus_) abundances and distributions off coastal New Jersey
+# Dynamic oceanographic influences on summer flounder (_Paralichthys dentatus_) abundances and distributions off coastal New Jersey
 
 Samantha Alaimo <sup>*a</sup>, Bill Bright<sup>b</sup>, Colleen Brust<sup>c</sup>, Jeff Brust<sup>c</sup>, Jeff Kaelin<sup>d</sup>, Travis Miles<sup>a</sup>, Daphne Munroe<sup>e</sup>, Laura Nazzaro<sup>a</sup>, Grace Saba<sup>a</sup>, Josh Kohut<sup>a</sup>
 
